@@ -4,7 +4,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::config::Config;
+use crate::config::{Config, Provider};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -76,9 +76,17 @@ pub async fn run(state: Arc<RwLock<AppState>>, config: Config) {
             s.ai.error = None;
         }
 
-        info!("Querying AI ({})...", config.ai.endpoint);
+        let provider = match config.ai.active_provider() {
+            Some(p) => p.clone(),
+            None => {
+                tracing::warn!("No active provider configured");
+                continue;
+            }
+        };
 
-        match query_ai(&client, &config, snapshot).await {
+        info!("Querying AI via '{}' ({})...", provider.name, provider.endpoint);
+
+        match query_ai(&client, &provider, config.ai.max_tokens, snapshot).await {
             Ok(response) => {
                 let commands = parse_commands(&response);
                 info!("AI returned {} commands", commands.len());
@@ -172,21 +180,32 @@ Output ONLY the commands. One per line. No explanation."#,
     )
 }
 
-async fn query_ai(client: &Client, config: &Config, prompt: String) -> anyhow::Result<String> {
+async fn query_ai(
+    client: &Client,
+    provider: &crate::config::Provider,
+    max_tokens: u32,
+    prompt: String,
+) -> anyhow::Result<String> {
     let body = ChatRequest {
-        model: config.ai.model.clone(),
+        model: provider.model.clone(),
         messages: vec![
             Message { role: "system".into(), content: SYSTEM_PROMPT.into() },
             Message { role: "user".into(), content: prompt },
         ],
-        max_tokens: config.ai.max_tokens,
+        max_tokens,
         temperature: 0.1,
         stream: false,
     };
 
-    let resp = client
-        .post(format!("{}/chat/completions", config.ai.endpoint))
-        .json(&body)
+    let mut req = client
+        .post(format!("{}/chat/completions", provider.endpoint))
+        .json(&body);
+
+    if let Some(key) = &provider.api_key {
+        req = req.bearer_auth(key);
+    }
+
+    let resp = req
         .send()
         .await?
         .error_for_status()?

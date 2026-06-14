@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
 #[derive(Debug, Clone, Default)]
@@ -47,6 +47,19 @@ pub struct AppState {
     pub pending_commands: Vec<String>,
     pub command_history: VecDeque<String>,
     pub optimize_trigger: bool,
+    /// provider name → (online, [model_ids])
+    pub provider_status: HashMap<String, (bool, Vec<String>)>,
+    pub model_download: Option<DownloadState>,
+    pub local_server_online: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct DownloadState {
+    pub file: String,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
+    pub done: bool,
+    pub error: Option<String>,
 }
 
 impl AppState {

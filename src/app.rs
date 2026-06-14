@@ -3,7 +3,7 @@ use std::sync::{
     Arc, RwLock,
 };
 
-use crate::{config::Config, state::AppState, ui};
+use crate::{config::Config, state::AppState, ui, ui::settings::SettingsForm};
 
 // Signals from tray → egui (static atomics, no GTK/channel needed)
 pub static WINDOW_VISIBLE: AtomicBool = AtomicBool::new(true);
@@ -77,14 +77,22 @@ pub struct PerfMaxApp {
     state: Arc<RwLock<AppState>>,
     config: Config,
     tab: Tab,
+    settings_form: SettingsForm,
+    download_tx: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
 impl PerfMaxApp {
-    pub fn new(state: Arc<RwLock<AppState>>, config: Config) -> Self {
+    pub fn new(
+        state: Arc<RwLock<AppState>>,
+        config: Config,
+        download_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    ) -> Self {
         Self {
             state,
             config,
             tab: Tab::Dashboard,
+            settings_form: SettingsForm::default(),
+            download_tx,
         }
     }
 }
@@ -185,7 +193,13 @@ impl eframe::App for PerfMaxApp {
             Tab::Dashboard => ui::dashboard::show(ui, &self.state),
             Tab::Ai => ui::ai_panel::show(ui, &self.state),
             Tab::Memory => ui::memory::show(ui, &self.state),
-            Tab::Settings => ui::settings::show(ui, &mut self.config),
+            Tab::Settings => ui::settings::show(
+                ui,
+                &mut self.config,
+                &self.state,
+                &mut self.settings_form,
+                &self.download_tx,
+            ),
         });
     }
 }
