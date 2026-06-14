@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=PerfMax
+Comment=AI-driven system performance optimizer
+Exec=perfmax
+Icon=utilities-system-monitor
+Type=Application
+Categories=System;Monitor;
+StartupNotify=false

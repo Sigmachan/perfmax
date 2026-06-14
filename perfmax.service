@@ -1,0 +1,15 @@
+[Unit]
+Description=PerfMax — AI-driven system performance optimizer
+After=graphical-session.target dbus.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/perfmax
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=perfmax=info
+Environment=DISPLAY=:0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%U/bus
+
+[Install]
+WantedBy=graphical-session.target
